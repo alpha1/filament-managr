@@ -4,5 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+app_data = "0.1.1"
 csv = "1.4.0"
 rust_native = "1.4.0"
+serde = "1.0.229"
+serde_json = "1.0.151"

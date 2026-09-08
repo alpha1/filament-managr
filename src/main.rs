@@ -1,7 +1,9 @@
 use std::io::stdin;
-use std::{error::Error, io, process};
+use std::{error::Error, io, process };
 use app_data::AppData;
+//use std::ops::Index;
 use csv::WriterBuilder;
+//use serde_json::json;
 //use csv::WriterBuilder;
 //use std::fmt::Debug;
 //use std::io::*;
@@ -44,6 +46,12 @@ impl FilamentInventory {
 			wtr.flush()?;
 			Ok(())
 	}
+
+	/*
+	fn export_json( &self ){
+
+	}
+	*/
 
 	fn import_csv( &self ) -> Result<(),Box<dyn Error>> {
 		println!("Starting Import");
@@ -115,7 +123,44 @@ impl FilamentInventory {
 		let mut filament_material_loop_completed = false;
 		while filament_material_loop_completed == false {
 			filament_material = String::new();
-			println!("What material is this filament?");
+			println!("What material is this filament? Select a number of the materials, or type a filament type.");
+			list_filament_types();
+			let filament_materials = get_filament_materials();
+			
+			let mut input = String::new();
+
+			println!("Enter a number (int or float):");
+			println!("You entered: {}", input);
+
+			io::stdin().read_line(&mut input).expect("X");
+
+			match input.trim().parse::<usize>(){
+				Ok( intnum ) => {
+					filament_material = filament_materials[intnum].to_string();
+					println!("You entered a number: {intnum}, which is {filament_material}.");
+					filament_material_loop_completed = true;
+					/*
+					if in_filament_materials( filament_material.trim().to_string().clone() ){
+						//let test = filament_materials.get(intnum as usize);
+						let test = filament_materials[intnum];
+						println!( "{}", test );
+					}*/
+				}
+				Err(error) => {
+					println!( "Invalid input. Error: {error}." );
+					println!("{}", input.trim());
+					if in_filament_materials( input.trim().to_string().clone() ){
+						
+						filament_material = input.trim().to_string();
+						filament_material_loop_completed = true;
+					} else {
+						println!( "Invalid input. Error: {error}. Please try again." );
+					}
+				}
+			}
+			drop( input );
+			println!("Material is: {filament_material}");
+			/*
 			match stdin().read_line(&mut filament_material) {
 				Ok(_n) => 
 					{
@@ -131,7 +176,7 @@ impl FilamentInventory {
 				Err(error) => println!( "Invalid input. Error: {error}." )
 			}
 			
-			
+			*/
 		}
 
 		let mut filament_color_loop_completed = false;
@@ -294,9 +339,11 @@ fn main() {
 		println!("[0]: Quit");
 		match stdin().read_line(&mut input) {
 			Ok(_n) =>  {
+				/*
 				println!("You entered: {}", input);
 				dbg!( &input );
 				dbg!( &input.trim() );
+				*/
 				match input.as_str().trim() {
 					//"1" => listFilament( &inventory ),
 					"1" => inventory.list_inventory(),
@@ -311,6 +358,7 @@ fn main() {
 					}
 					"x" => inventory.import_test_filaments(),
 					"e" => inventory.export_csv().expect("FAIL"),
+					"j" => inventory.export_json(),
 					"i" => inventory.import_csv().expect("test"),
 					"t" => inventory.is_filament_allowed(),
 					&_ => println!("Error"),
@@ -340,8 +388,8 @@ fn list_filament_types( ) {
 	let filement_materials = get_filament_materials();
 	println!( "There are {} filament types.", filement_materials.len() );
 	
-	for filement_materials in &filement_materials {
-		println!( "{}", filement_materials );
+	for (pos,filement_materials) in filement_materials.iter().enumerate() {
+		println!( "[{pos}]: {}", filement_materials );
 	}
 	
 }
