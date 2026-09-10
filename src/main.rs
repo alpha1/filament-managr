@@ -1,9 +1,13 @@
-use std::io::stdin;
-use std::{error::Error, io, process };
+#![allow(unused)]
+#![allow(unused_imports)]
+use std::{error::Error, io, io::stdin, process,env,collections::BTreeMap};//use serde_ };
 use app_data::AppData;
 //use std::ops::Index;
 use csv::WriterBuilder;
-//use serde_json::json;
+use dialoguer::Select;
+use dialoguer::Input;
+//use console::Term;
+//use json::json;
 //use csv::WriterBuilder;
 //use std::fmt::Debug;
 //use std::io::*;
@@ -320,24 +324,46 @@ impl Filament {
 }
 
 fn main() {
+	println!("##########DEBUG INFO##########");
+	
+	let args: Vec<String> = env::args().collect();
+    dbg!(args.clone() );
+
+	println!( "There are {} args.", args.len() );
+	
+	for (pos,args) in args.iter().enumerate() {
+		println!( "[{pos}]: {}", args );
+	}
+	println!("##############################");
+
+	println!( "Welcome to Filament Managr.");
+
 	let mut inventory = FilamentInventory::new();
-	println!( "Created Inventory");
+	
 	println!( "Inventory has {} items.", inventory.all_filament.len() );
 
+	let mut commands = BTreeMap::new();
+	commands.insert("1", "List inventory");
+	commands.insert("2", "Add filament to inventory");
+	commands.insert("3", "Delete filament to inventory");
+	commands.insert("9", "List filament materials");
+	commands.insert("t", "Test filament material names");
+	commands.insert("e", "Export filament inventory to CSV");
+	commands.insert("x", "Setup example filaments");
+	commands.insert("h", "Help");
+	commands.insert("q", "Quit");
 	//inventory.push(
+
+	let mut commands_vec = vec!["List Inventory", "Add Filament"];
+
 	loop {
-	let mut input = String::new();
-		println!("Hello, what would you like to do?");
-		println!("[1]: List inventory");
-		println!("[2]: Add inventory");
-		println!("[3]: Delete inventory");
-		println!("[9]: List Filament Types");
-		println!("[t]: Test Filament Types");
-		println!("[e]: Export to CSV");
-		println!("[i]: Import from CSV");
-		println!("[x]: Setup Example Filaments");
-		println!("[0]: Quit");
-		match stdin().read_line(&mut input) {
+		let mut input = String::new();
+		println!("What would you like to do? Enter the character or character inside brackets to select an option.");
+		for (key, value) in &commands {
+			println!("[{key}]: {value}");
+			
+		}
+		 match stdin().read_line(&mut input) {
 			Ok(_n) =>  {
 				/*
 				println!("You entered: {}", input);
@@ -358,7 +384,7 @@ fn main() {
 					}
 					"x" => inventory.import_test_filaments(),
 					"e" => inventory.export_csv().expect("FAIL"),
-					"j" => inventory.export_json(),
+					//"j" => inventory.export_json(),
 					"i" => inventory.import_csv().expect("test"),
 					"t" => inventory.is_filament_allowed(),
 					&_ => println!("Error"),
