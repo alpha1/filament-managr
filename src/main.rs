@@ -1,19 +1,26 @@
 #![allow(unused)]
 #![allow(unused_imports)]
 use core::error;
+use std::collections::hash_map;
+use std::hash::Hash;
 use std::path::PathBuf;
+use std::process::ExitCode;
 use std::sync::Arc;
 use std::{
 	error::Error,
 	io,
+	io::Read,
 	io::stdin,
 	io::Write,
+	io::BufReader,
 	fs,
 	fs::File,
 	fs::OpenOptions,
 	process,
 	env,
 	collections::BTreeMap,
+	collections::HashMap,
+	path::Path,
 };//use serde_ };
 use app_data::AppData;
 use uuid::Uuid;
@@ -29,7 +36,7 @@ use serde::{Deserialize,Serialize};
 //use std::process::Command;
 //use console::Term;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug,serde::Serialize, serde::Deserialize)]
 struct FilamentLibrary {
 	pub library_name:String,
 	pub id: Uuid,
@@ -101,7 +108,9 @@ impl FilamentLibrary {
 
 		match sourcefile {
 			Ok(mut file) => {
-				writeln!(&mut file, "new line");
+				let mut filament_library_json:String = serde_json::to_string( &self ).expect("CONVERT TO JSON FAILED");
+				
+				writeln!(&mut file,"{}", filament_library_json ).expect("JSON WRITE FAILED");
 			},
 			Err(error) => {
 				println!("Crap!");
@@ -131,6 +140,11 @@ impl FilamentLibrary {
 
 	
 	fn export_json( &self ){
+
+	}
+
+	fn prepare_instance_for_json_export( &self ){
+		
 
 	}
 
@@ -438,8 +452,30 @@ fn main() {
 					match main_menu_selection.as_str().trim() {
 						"o" => {
 							println!("Select a Filament Library to Open");
-							get_app_data_directory();
-							get_app_default_save_directory_files();
+							//get_app_data_directory();
+							//list_app_default_save_directory_files();
+							let files = get_app_default_save_directory_files();
+							for (pos,file) in files.iter().enumerate() {
+								println!( "[{pos}]: {}", file.0 );
+							}
+
+							match stdin().read_line(&mut main_menu_selection) {
+								Ok(library_selection) => {
+									
+									library_name = "Main".to_string();
+									println!("Library selected: {}", library_name);
+									println!("Shutting down while more work is done");
+									process::exit(0);
+									let mut inventory = FilamentLibrary::new( library_name.clone() );
+									library_menu(inventory.clone());
+									
+								},
+								Err(..) => todo!(),
+							}
+							break();
+
+							
+							
 							
 						},
 						"c" => {
@@ -448,15 +484,17 @@ fn main() {
 							match stdin().read_line(&mut library_name) {
 								Ok(_n) => {
 									library_name = library_name.trim().to_string();
-									
-									
+									let mut inventory = FilamentLibrary::new( library_name.clone() );
+									inventory.create_library_file();
+									library_menu(inventory.clone());
 								}
 								Err(_) => todo!()
 							}
 
 						},
 						"q"  => {
-
+							println!("Goodbye");
+							process::exit(0);
 						},
 						&_ => println!("Error"),
 					}
@@ -464,64 +502,60 @@ fn main() {
 				},
 				Err(_) => todo!()
 		}
-		
-		let mut inventory = FilamentLibrary::new( library_name.clone() );
-		inventory.create_library_file();
-	
-		
-		println!( "Library {} has {} items.", inventory.library_name, inventory.all_filament.len() );
-		
-		let mut commands = BTreeMap::new();
-		commands.insert("1", "List inventory");
-		commands.insert("2", "Add filament to inventory");
-		commands.insert("3", "Delete filament to inventory");
-		commands.insert("9", "List filament materials");
-		commands.insert("t", "Test filament material names");
-		commands.insert("e", "Export filament inventory to CSV");
-		commands.insert("x", "Setup example filaments");
-		commands.insert("h", "Help");
-		commands.insert("q", "Quit");
-		commands.insert("m", "Return to main menu");
-		//inventory.push(
-		loop {
-			let mut input = String::new();
-			println!("What would you like to do? Enter the character or character inside brackets to select an option.");
-			for (key, value) in &commands {
-				println!("[{key}]: {value}");
-				
-			}
-			match stdin().read_line(&mut input) {
-				Ok(_n) =>  {
-					/*
-					println!("You entered: {}", input);
-					dbg!( &input );
-					dbg!( &input.trim() );
-					*/
-					match input.as_str().trim() {
-						//"1" => listFilament( &inventory ),
-						"1" => inventory.list_inventory(),
-						//"2" => addFilamentToCollection( &mut inventory ),
-						"2" => inventory.maybe_add_filament(),
-						//"3" => maybeRemoveFilament( &mut inventory ),
-						"3" => inventory.maybe_remove_filament(),
-						"9" => list_filament_types( ), 
-						"0" => {
-							println!("Goodbye");
-							process::exit(0);
-						}
-						"x" => inventory.import_test_filaments(),
-						"e" => inventory.export_csv().expect("FAIL"),
-						//"j" => inventory.export_json(),
-						"i" => inventory.import_csv().expect("test"),
-						"t" => inventory.is_filament_allowed(),
-						"m" => break(),
-						&_ => println!("Error"),
+	}
+}
+fn library_menu( mut inventory: FilamentLibrary){
+	println!( "Library {} has {} items.", inventory.library_name, inventory.all_filament.len() );
+	let mut commands = BTreeMap::new();
+	commands.insert("1", "List inventory");
+	commands.insert("2", "Add filament to inventory");
+	commands.insert("3", "Delete filament to inventory");
+	commands.insert("9", "List filament materials");
+	commands.insert("t", "Test filament material names");
+	commands.insert("e", "Export filament inventory to CSV");
+	commands.insert("x", "Setup example filaments");
+	commands.insert("h", "Help");
+	commands.insert("q", "Quit");
+	commands.insert("m", "Return to main menu");
+	loop {
+		let mut input = String::new();
+		println!("What would you like to do? Enter the character or character inside brackets to select an option.");
+		for (key, value) in &commands {
+			println!("[{key}]: {value}");
+			
+		}
+		match stdin().read_line(&mut input) {
+			Ok(_n) =>  {
+				/*
+				println!("You entered: {}", input);
+				dbg!( &input );
+				dbg!( &input.trim() );
+				*/
+				match input.as_str().trim() {
+					//"1" => listFilament( &inventory ),
+					"1" => inventory.list_inventory(),
+					//"2" => addFilamentToCollection( &mut inventory ),
+					"2" => inventory.maybe_add_filament(),
+					//"3" => maybeRemoveFilament( &mut inventory ),
+					"3" => inventory.maybe_remove_filament(),
+					"9" => list_filament_types( ), 
+					"0" => {
+						println!("Goodbye");
+						process::exit(0);
 					}
+					"x" => inventory.import_test_filaments(),
+					"e" => inventory.export_csv().expect("FAIL"),
+					//"j" => inventory.export_json(),
+					"i" => inventory.import_csv().expect("test"),
+					"t" => inventory.is_filament_allowed(),
+					"m" => break(),
+					&_ => println!("Error"),
 				}
-				Err(error) => println!( "Invalid input. Error: {error}." )
 			}
+			Err(error) => println!( "Invalid input. Error: {error}." )
 		}
 	}
+
 }
 
 fn get_filament_materials() -> [&'static str; 11] {
@@ -567,17 +601,91 @@ fn get_app_default_save_directory() -> PathBuf{
 	data_dir
 }
 
-fn get_app_default_save_directory_files() -> Result<(), Box<dyn std::error::Error>>{
+fn list_app_default_save_directory_files(){
+	let files = get_app_default_save_directory_files();
+	for (pos,file) in files.iter().enumerate() {
+		println!( "[{pos}]: {}", file.0 );
+	}
+	//println!( "{:#?}", files );
+	/*match files {
+		Ok(saved_files:HashMap) => {
+			println!("{:#?}",x);
+			//for (pos,files) in files.iter().enumerate() {
+			//	println!( "[{pos}]: {:#?}", files );
+			//}
+		},
+		Err(_) => {
+			todo!("File is not okay")
+		}
+	}*/
+	
+}
+
+fn get_app_default_save_directory_files() -> HashMap<String,PathBuf>{
 	let mut data_dir = get_app_data_directory();
 	data_dir.push("libraries" );
+	//let mut libraries_vec: = Vec::new();
+	let mut libraries_hash: HashMap<String,PathBuf> = HashMap::new();
+
 	if data_dir.is_dir() {
-		for entry in fs::read_dir(data_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            println!("{}", entry.path().display());
-        }
+		let dir =  fs::read_dir(data_dir);
+		match dir {
+			Ok(dir) => {
+				let mut entries: Vec<PathBuf> = dir
+				.filter(Result::is_ok)
+				.map(|e| e.unwrap().path())
+    		    .collect();
+				for entry in entries {
+				//println!( "{:#?}", entry );
+				let path = entry.as_path();
+				let filename = entry.file_name();
+				//println!("{}", entry.file_name().display());
+		
+				let file = File::open(entry.as_path() );
+				
+				match file {
+					Ok(file) => {
+						let mut reader = BufReader::new(file);
+						let mut file_contents_json = String::new();
+						reader.read_to_string(&mut file_contents_json);
+						//println!("Buffered File");
+						//println!("{}", file_contents_json);
+						let inventory: FilamentLibrary = serde_json::from_str(&file_contents_json).unwrap();
+						//println!("{:#?}", inventory);
+						//println!("{}", inventory.library_name);
+
+						//let mut library_tuple = (String::new(),path::new());
+						//let mut library_tuple = (inventory.library_name.to_string(),filename, path.clone());
+						//libraries_vec.push(library_tuple);
+
+						libraries_hash.insert(inventory.library_name.to_string(),path.to_path_buf());
+						
+
+					},
+					Err(_) => {
+						todo!("File is not okay")
+					}
+				}
+				
+				
+			}
+			},
+			Err(_) => {
+					todo!("File is not okay")
+				}
+			
+		}
+
+		 
+		/*
+		println!( "Vector of Tuples");
+		println!("{:#?}",libraries_vec);
+		println!( "Hash of Data");
+		println!("{:#?}",libraries_hash);
+		*/
+		
 	}
-	Ok(())
+	return libraries_hash
 }
 
 
