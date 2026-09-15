@@ -24,6 +24,7 @@ use std::{
 };//use serde_ };
 use app_data::AppData;
 use uuid::Uuid;
+use indexmap::{IndexMap, IndexSet};
 //use std::ops::Index;
 use csv::WriterBuilder;
 use dialoguer::Select;
@@ -86,6 +87,15 @@ impl FilamentLibrary {
 			recycle_bin:Vec::new(),
 		}
 	}
+	
+
+	fn get_library_sourcefile_path(&self) -> PathBuf {
+		let mut app_save_directory = get_app_save_directory();
+		let mut sourcefile_full_path = app_save_directory;
+		sourcefile_full_path.push(self.id.to_string());
+		sourcefile_full_path.set_extension("json");
+		sourcefile_full_path
+	}
 
 	fn create_library_file( &self ){
 		let mut app_save_directory = get_app_save_directory();
@@ -138,7 +148,29 @@ impl FilamentLibrary {
 			Ok(())
 	}
 
-	
+	fn save_default( &self ){
+		let sourcefile_full_path:PathBuf = self.get_library_sourcefile_path();
+
+		let sourcefile = OpenOptions::new()
+			.read(true)
+			.write(true)
+			.create_new(false)
+			.open(sourcefile_full_path.clone());
+
+		match sourcefile {
+			Ok(mut file) => {
+				let mut filament_library_json:String = serde_json::to_string( &self ).expect("CONVERT TO JSON FAILED");
+				
+				writeln!(&mut file,"{}", filament_library_json ).expect("JSON WRITE FAILED");
+			},
+			Err(error) => {
+				println!("Crap!");
+				println!("{}",error);
+				println!("{}",sourcefile_full_path.clone().display() );
+			}
+		}
+	}
+
 	fn export_json( &self ){
 
 	}
@@ -455,28 +487,45 @@ fn main() {
 							//get_app_data_directory();
 							//list_app_default_save_directory_files();
 							let files = get_app_default_save_directory_files();
+							println!("{:#?}", files);
 							for (pos,file) in files.iter().enumerate() {
 								println!( "[{pos}]: {}", file.0 );
 							}
 
-							match stdin().read_line(&mut main_menu_selection) {
-								Ok(library_selection) => {
-									
-									library_name = "Main".to_string();
-									println!("Library selected: {}", library_name);
-									println!("Shutting down while more work is done");
-									process::exit(0);
-									let mut inventory = FilamentLibrary::new( library_name.clone() );
-									library_menu(inventory.clone());
-									
+							let mut library_selection_input:String = String::new();
+							stdin().read_line(&mut library_selection_input);
+
+							match library_selection_input.trim().parse::<usize>(){
+								Ok( index ) =>{
+									if let Some((key, value)) = files.get_index(index) {
+										println!("Item at index x{}x: y{}y => z{:#?}z", index, key, value);
+
+										let file = File::open(value.as_path() );
+				
+										match file {
+											Ok(file) => {
+												let mut reader = BufReader::new(file);
+												let mut file_contents_json = String::new();
+												reader.read_to_string(&mut file_contents_json);
+												//println!("Buffered File");
+												//println!("{}", file_contents_json);
+												let inventory: FilamentLibrary = serde_json::from_str(&file_contents_json).unwrap();
+
+												library_menu(inventory);
+											},
+											Err(_) => {
+											todo!("File is not okay")
+											}
+										}
+									} else {
+										println!("Index out of bounds!");
+									}	
 								},
 								Err(..) => todo!(),
 							}
+							
+							
 							break();
-
-							
-							
-							
 						},
 						"c" => {
 							println!("What should we call this library?");
@@ -498,12 +547,12 @@ fn main() {
 						},
 						&_ => println!("Error"),
 					}
-
 				},
 				Err(_) => todo!()
 		}
 	}
 }
+
 fn library_menu( mut inventory: FilamentLibrary){
 	println!( "Library {} has {} items.", inventory.library_name, inventory.all_filament.len() );
 	let mut commands = BTreeMap::new();
@@ -516,6 +565,7 @@ fn library_menu( mut inventory: FilamentLibrary){
 	commands.insert("x", "Setup example filaments");
 	commands.insert("h", "Help");
 	commands.insert("q", "Quit");
+	commands.insert("s", "Save");
 	commands.insert("m", "Return to main menu");
 	loop {
 		let mut input = String::new();
@@ -548,6 +598,7 @@ fn library_menu( mut inventory: FilamentLibrary){
 					//"j" => inventory.export_json(),
 					"i" => inventory.import_csv().expect("test"),
 					"t" => inventory.is_filament_allowed(),
+					"s" => inventory.save_default(),
 					"m" => break(),
 					&_ => println!("Error"),
 				}
@@ -621,11 +672,11 @@ fn list_app_default_save_directory_files(){
 	
 }
 
-fn get_app_default_save_directory_files() -> HashMap<String,PathBuf>{
+fn get_app_default_save_directory_files() -> IndexMap<String,PathBuf>{
 	let mut data_dir = get_app_data_directory();
 	data_dir.push("libraries" );
-	//let mut libraries_vec: = Vec::new();
-	let mut libraries_hash: HashMap<String,PathBuf> = HashMap::new();
+	//let mut libraries_vec: Vec =  Vec::new();
+	let mut libraries_hash: IndexMap<String,PathBuf> = IndexMap::new();
 
 	if data_dir.is_dir() {
 		let dir =  fs::read_dir(data_dir);
