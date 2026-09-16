@@ -23,6 +23,7 @@ use std::{
 	path::Path,
 };//use serde_ };
 use app_data::AppData;
+use hex_color::HexColor;
 use uuid::Uuid;
 use indexmap::{IndexMap, IndexSet};
 //use std::ops::Index;
@@ -43,40 +44,86 @@ struct FilamentLibrary {
 	pub id: Uuid,
 	pub all_filament:Vec<Filament>,
 	recycle_bin:Vec<Filament>,
+	manufacturers:Vec<Filament>,
+	filament_material:Vec<Filament>,
 }
 
-#[derive(Debug)]
-struct FilamentLibrarySourceFile {
-	source_file:File,
-}
 
 #[derive(Clone, Debug,serde::Serialize, serde::Deserialize)]
 struct Filament {
 	name: String,
 	manufacturer: String,
 	material: String,
-	color: String,
-	//spool_count: i8,
-}
-#[derive(Clone, Debug )]
-struct Spool {
-	name: Filament,
-	weight: i8,
-	material: String,
-	color: String,
+	series: Option<String>,
+	favorite:Option<bool>,
+	spools:Vec<Spool>,
+	disabled:Option<bool>,
+	hidden:Option<bool>
 	//spool_count: i8,
 }
 
 impl Filament {
-	/*fn new() -> Self {
+	fn new( name:String, manufacturer:String,material:String) -> Self {
 		Self {
-			name:String::new(),
-			filament_type:String::new(),
-			color:String::new(),
-			//spool_count::new()
+			name:name,
+			manufacturer:manufacturer,
+			material:material,
+			series:None,
+			favorite: None,
+			spools: Vec::new(),
+			disabled: Some(false),
+			hidden: None,
 		}
-	}*/
+	}
 }
+/*
+impl Default for Filament {
+	fn default() -> Self {
+		Filament { 
+			name:String::new(),
+			manufacturer:String::new(),
+			material:String::new(),
+			series:Some(String::new()),
+			favorite: None,
+			spools:Vec::new(),
+			disabled: None,
+			hidden: None,
+		}
+	}
+}
+*/
+#[derive(Clone, Debug,serde::Serialize, serde::Deserialize)]
+struct Spool {
+	material: String,
+	color_name: String,
+	hex: Option<HexColor>,
+	weight: i16,
+	price:Option<f32>,	//spool_count: i8,
+}
+
+impl Spool {
+	fn new( material: String, color_name: String, hex_coolor:String, price:f32) -> Self {
+		Self {
+			material:material,
+			color_name:color_name,
+			hex:None,
+			weight: 1000,
+			price:Some(price),
+		}
+	}
+}
+/*
+impl Default for Spool {
+	fn default() -> Self {
+		Spool {
+			color_name:Option::None,
+			hex:Option::HexColor,
+			weight:1000,
+			price:0.0,
+		}
+	}
+}
+*/
 
 impl FilamentLibrary {
 	fn new( name: String) -> Self {
@@ -85,9 +132,14 @@ impl FilamentLibrary {
 			id: Uuid::new_v4(),
 			all_filament:Vec::new(),
 			recycle_bin:Vec::new(),
+			manufacturers:Vec::new(),
+			filament_material:Vec::new(),
 		}
 	}
 	
+	fn create_list_of_manufactuers(){
+
+	}
 
 	fn get_library_sourcefile_path(&self) -> PathBuf {
 		let mut app_save_directory = get_app_save_directory();
@@ -140,9 +192,9 @@ impl FilamentLibrary {
 		println!("Starting Export");
 
 		  let mut wtr = WriterBuilder::new().from_path("Filament Inventory.csv")?;
-			wtr.write_record(["Filament Name","Filament Menufacturer", "Filament Material", "Filament Color"])?;
+			wtr.write_record(["Filament Name","Filament Menufacturer", "Filament Material","Favorite Filament?", "Filament Color","Filament Hex code","Disabled?","Hidden?","Spool Count"])?;
 			for ( item ) in self.all_filament.iter() {
-				wtr.write_record([item.name.clone(), item.manufacturer.clone(), item.material.clone(), item.color.clone()])?;
+				wtr.write_record([item.name.clone(), item.manufacturer.clone(), item.material.clone(), ])?;
 			}
 			wtr.flush()?;
 			Ok(())
@@ -203,18 +255,27 @@ impl FilamentLibrary {
 	}
 
 	fn import_test_filaments( &mut self ){
+		/*
 		self.add_filament( "Overture PLA Pro".to_string(), "Overture".to_string(), "PLA".to_string(), "Black".to_string() );
 		self.add_filament(  "Overture PLA Pro".to_string(),"Overture".to_string(), "PLA".to_string(), "Blue".to_string() );
 		self.add_filament( "Pokymaker PLA-HT".to_string(),"Polymaker".to_string(), "PLA-HT".to_string(), "Blue".to_string() );
 		self.add_filament(  "Pokymaker PLA-HT".to_string(), "Polymaker".to_string(),"PLA-HT".to_string(), "Red".to_string() );
 		self.add_filament(  "Pokymaker PLA-HT".to_string(), 
 		"Polymaker".to_string(),"PLA-HT".to_string(), "Green".to_string() );
+		*/
+
+		self.add_filament( "Overture PLA Pro".to_string(), "Overture".to_string(), "PLA".to_string() );
+		self.add_filament(  "Overture PLA Pro".to_string(),"Overture".to_string(), "PLA".to_string() );
+		self.add_filament( "Pokymaker PLA-HT".to_string(),"Polymaker".to_string(), "PLA-HT".to_string() );
+		self.add_filament(  "Pokymaker PLA-HT".to_string(), "Polymaker".to_string(),"PLA-HT".to_string() );
+		self.add_filament(  "Pokymaker PLA-HT".to_string(), 
+		"Polymaker".to_string(),"PLA-HT".to_string());
 	}
 	
 	fn list_inventory( &self ){
 		println!( "Listing filaments in {}", self.library_name);
 		for (pos, item ) in self.all_filament.iter().enumerate() {
-			println!("[{}]: {} - {} - {} - {}", pos, item.name, item.manufacturer, item.material, item.color );
+			println!("[{}]: {} - {} - {}", pos, item.name, item.manufacturer, item.material);
 		}
 	}
 
@@ -249,17 +310,39 @@ impl FilamentLibrary {
 
 		let mut filament_manufacturer_loop_completed = false;
 		while !filament_manufacturer_loop_completed {
-			println!("Who manufacturers this filament?");
-			match stdin().read_line(&mut filament_manufacturer) {
-				Ok(_n) => 
-					{
-						filament_manufacturer = filament_manufacturer.trim().to_string();
-						println!("You entered: {}", filament_manufacturer);
+			println!("Who manufacturers this filament? Select the corresponding number, or type a filamanufacturer name.");
+			list_filament_manufacturers();
+			let filament_manufacturers = get_filament_manufacturers();
+
+			let mut filament_manufacturer_user_input = String::new();
+
+			io::stdin().read_line(&mut filament_manufacturer_user_input).expect("X");
+			println!("You entered: {}", filament_manufacturer_user_input.trim());
+
+			match filament_manufacturer_user_input.trim().parse::<usize>(){
+				Ok( intnum ) => {
+					filament_manufacturer = filament_manufacturers[intnum].to_string();
+					println!("You entered a number: {intnum}, which is {filament_manufacturer}.");
+					filament_manufacturer_loop_completed = true;
+					/*
+					if in_filament_materials( filament_material.trim().to_string().clone() ){
+						//let test = filament_materials.get(intnum as usize);
+						let test = filament_materials[intnum];
+						println!( "{}", test );
+					}*/
+				}
+				Err(error) => {
+					println!( "Invalid input. Error: {error}." );
+					println!("{}", filament_manufacturer_user_input.trim());
+					if in_filament_manufacturers( filament_manufacturer_user_input.trim().to_string().clone() ){
+						
+						filament_manufacturer = filament_manufacturer_user_input.trim().to_string();
 						filament_manufacturer_loop_completed = true;
+					} else {
+						println!( "Invalid input. Error: {error}. Please try again." );
 					}
-				Err(error) => println!( "Invalid input. Error: {error}." )
+				}
 			}
-			
 			
 		}
 
@@ -271,23 +354,15 @@ impl FilamentLibrary {
 			let filament_materials = get_filament_materials();
 			
 			let mut input = String::new();
-
-			println!("Enter a number (int or float):");
-			println!("You entered: {}", input);
-
+			
 			io::stdin().read_line(&mut input).expect("X");
+			println!("You entered: {}", input);
 
 			match input.trim().parse::<usize>(){
 				Ok( intnum ) => {
 					filament_material = filament_materials[intnum].to_string();
 					println!("You entered a number: {intnum}, which is {filament_material}.");
 					filament_material_loop_completed = true;
-					/*
-					if in_filament_materials( filament_material.trim().to_string().clone() ){
-						//let test = filament_materials.get(intnum as usize);
-						let test = filament_materials[intnum];
-						println!( "{}", test );
-					}*/
 				}
 				Err(error) => {
 					println!( "Invalid input. Error: {error}." );
@@ -303,93 +378,44 @@ impl FilamentLibrary {
 			}
 			drop( input );
 			println!("Material is: {filament_material}");
-			/*
-			match stdin().read_line(&mut filament_material) {
-				Ok(_n) => 
-					{
-						println!("You entered: {}", filament_material.trim());
-						if in_filament_materials( filament_material.trim().to_string().clone() ){
-							filament_material_loop_completed = true;
-						} else {
-							filament_material = filament_material.trim().to_string();
-							println!("{filament_material} is not a valid filament material. Please try again.")
-						}
-						
-					}
-				Err(error) => println!( "Invalid input. Error: {error}." )
-			}
-			
-			*/
+		
 		}
-
-		let mut filament_color_loop_completed = false;
-		while !filament_color_loop_completed {
-			
-		println!("What color is this filament?");
-			match stdin().read_line(&mut filament_color) {
-				Ok(_n) => 
-					{
-						println!("You entered: {}", filament_color.trim());
-						filament_color_loop_completed = true;
-					}
-				Err(error) => println!( "Invalid input. Error: {error}." )
-			}
-			
-			
-		}
-
-		let mut filament_spool_count_loop_completed = false;
-		while !filament_spool_count_loop_completed {
-			
-			println!("How many spools would you like to ad?");
-			match stdin().read_line(&mut spool_count_string) {
-				Ok(_n) => 
-					{
-						println!("You entered: {}", spool_count_string.trim());
-						filament_spool_count_loop_completed = true;
-					}
-				Err(error) => println!( "Invalid input. Error: {error}." )
-			}
-			
-			
-		}
+		println!("Made it to here");
 		
-		 match spool_count_string.trim() .parse::<i32>(){
-			Ok(spool_count) => println!("User number is: {}", spool_count),
-			Err(_) => println!("Something is not wrong. Maybe you did not enter a valid integer.")
-		 }
-		
-		//let mut spool_count spool_count_string.parse::().unwrap();
-		
-		/*let new_filament = Filament {
-			name: String::from(filament_name.trim()),
-			filament_type: String::from(filament_material.trim()),
-			color: String::from(filament_color.trim()),
-			//spool_count: spool_count,
-		};*/
-		self.add_filament(filament_name.clone(), filament_material.clone(),filament_manufacturer.clone(), filament_color.clone() );
-
-
-		//filaventory.push(new_filament);
-		//println!("Added {} to inventory.", new_filament.);
-		
+		self.add_filament(filament_name.clone(), filament_manufacturer.clone(),filament_material.clone());
 		println!( "You NOW have {} items in your current inventory.", self.all_filament.len() );
 	}
 
-	fn add_filament( &mut self, filament_name:String, filament_menufacturer:String, filament_material:String, filament_color:String  ){
+	fn add_filament( &mut self, filament_name:String, filament_manufacturer:String, filament_material:String  ){
 		println!("Adding Filament to Inventory");
 
 		if in_filament_materials(filament_material.clone() ){
-			let new_filament = Filament {
+
+			let mut new_filament = Filament::new( 
+				String::from(filament_name.trim()),
+				filament_manufacturer.trim().to_string(),
+				String::from(filament_material.trim())
+			);
+			/*
+			let new_filament = Filament::new{
 				name: String::from(filament_name.trim()),
 				manufacturer: filament_menufacturer.trim().to_string(),
 				material: String::from(filament_material.trim()),
-				color: String::from(filament_color.trim()),
+				//color: String::from(filament_color.trim()),
 				//spool_count: spool_count,
 			};
+			*/
 			self.all_filament.push(new_filament);
 		}
-		self.autosave_filament_library_json();
+		//self.autosave_filament_library_json();
+	}
+
+	fn maybe_add_spool( &self ){
+
+	}
+
+	fn add_spool( &self ){
+
 	}
 
 	fn is_filament_allowed( &self ){
@@ -630,6 +656,26 @@ fn list_filament_types( ) {
 	
 }
 
+fn get_filament_manufacturers() -> [&'static str; 20] {
+	["Overture", "Polymaker", "BambuLab","FlashForge","Amolen","AnyCubic","Hatchbox","ProtoPasta","Sunlu","iSANMATE","eSUN","Eryone","Creality","Elegoo", "Amazon","Polar Filament","Siraya Tech","American Filament","Canadian Filaments","Generic"]
+}
+
+fn in_filament_manufacturers( filement_manufacturer:String)  -> bool {
+	println!("{filement_manufacturer}");
+	let filement_manufacturers = get_filament_manufacturers();
+	filement_manufacturers.iter().any(|&i| i== filement_manufacturer)
+}
+
+fn list_filament_manufacturers( ) {
+	println!("Listing Filament Manufacturers");
+	let filement_manufacturers = get_filament_manufacturers();
+	println!( "There are {} filement manufacturers.", filement_manufacturers.len() );
+	
+	for (pos,filement_manufacturer) in filement_manufacturers.iter().enumerate() {
+		println!( "[{pos}]: {}", filement_manufacturer );
+	}	
+}
+
 fn get_app_data_directory() -> PathBuf {
 	let app_data = AppData::new("FilamentManagr");
 	let data_dir = app_data.ensure_data_dir().unwrap();
@@ -747,7 +793,7 @@ mod tests {
     fn test_add_single_filament() {
 		use crate::FilamentLibrary;
 		let mut inventory = FilamentLibrary::new();
-		inventory.add_filament( "Overture PLA Pro".to_string(), "Overture".to_string(), "PLA".to_string(), "Black".to_string() );
+		inventory.add_filament( "Overture PLA Pro".to_string(), "Overture".to_string(), "PLA".to_string() );
 		let all_filament = inventory.get_inventory_copy();
 		
 		assert_eq!(all_filament.len(),1);

@@ -7,6 +7,7 @@ edition = "2024"
 app_data = "0.1.1"
 csv = "1.4.0"
 dialoguer = "0.12.0"
+hex_color = { version = "3.0.0", features = ["serde"] }
 indexmap = { version = "2.14.2", features = ["serde"] }
 json = "0.12.4"
 rust_native = "1.4.0"
