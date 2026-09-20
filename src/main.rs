@@ -194,7 +194,7 @@ impl FilamentLibrary {
 		  let mut wtr = WriterBuilder::new().from_path("Filament Inventory.csv")?;
 			wtr.write_record(["Filament Name","Filament Menufacturer", "Filament Material","Favorite Filament?", "Filament Color","Filament Hex code","Disabled?","Hidden?","Spool Count"])?;
 			for ( item ) in self.all_filament.iter() {
-				wtr.write_record([item.name.clone(), item.manufacturer.clone(), item.material.clone(), ])?;
+				wtr.write_record([item.name.clone(), item.manufacturer.clone(), item.material.clone() ])?;
 			}
 			wtr.flush()?;
 			Ok(())
@@ -410,8 +410,22 @@ impl FilamentLibrary {
 		//self.autosave_filament_library_json();
 	}
 
-	fn maybe_add_spool( &self ){
-
+	fn maybe_add_spool( &self, filament_material:String ){
+		let mut filament_name = String::new();
+		let mut filament_name_loop_completed = false;
+		while !filament_name_loop_completed {
+			println!("What will this filament be called?");
+			match stdin().read_line(&mut filament_name) {
+				Ok(_n) => 
+					{
+						println!("You entered: {}", filament_name.trim());
+						filament_name_loop_completed = true;
+					}
+				Err(error) => println!( "Invalid input. Error: {error}." )
+			}
+			
+			
+		}
 	}
 
 	fn add_spool( &self ){
@@ -473,19 +487,24 @@ impl FilamentLibrary {
 
 
 fn main() {
-	println!("##########DEBUG INFO##########");
-
 	let args: Vec<String> = env::args().collect();
-    dbg!(args.clone() );
+	handle_args( args.clone() );
+	println!( "Welcome to Filament Managr.");
+	let mut library:FilamentLibrary = library_picker();
+}
 
+fn handle_args( args:Vec<String> ) {
+	println!("##########DEBUG INFO##########");
+	  dbg!(args.clone() );
 	println!( "There are {} args.", args.len() );
-	
 	for (pos,args) in args.iter().enumerate() {
 		println!( "[{pos}]: {}", args );
 	}
 	println!("##############################");
+}
 
-	println!( "Welcome to Filament Managr.");
+
+fn library_picker() -> FilamentLibrary {
 	let mut main_menu = BTreeMap::new();
 	main_menu.insert("o", "Open Existing Filament Library");
 	main_menu.insert("c", "Create Filament Library");
@@ -493,7 +512,6 @@ fn main() {
 
 	let mut library_name = String::new();
 	loop {
-		println!("Get started.");
 		let mut main_menu_selection = String::new();
 		for (key, value) in &main_menu {
 			println!("[{key}]: {value}");
@@ -513,7 +531,11 @@ fn main() {
 							//get_app_data_directory();
 							//list_app_default_save_directory_files();
 							let files = get_app_default_save_directory_files();
-							println!("{:#?}", files);
+							if(files.is_empty()){
+								println!("No libraries found.");
+								library_picker();
+							}
+
 							for (pos,file) in files.iter().enumerate() {
 								println!( "[{pos}]: {}", file.0 );
 							}
@@ -551,7 +573,7 @@ fn main() {
 							}
 							
 							
-							break();
+							
 						},
 						"c" => {
 							println!("What should we call this library?");
@@ -732,6 +754,7 @@ fn get_app_default_save_directory_files() -> IndexMap<String,PathBuf>{
 				.filter(Result::is_ok)
 				.map(|e| e.unwrap().path())
     		    .collect();
+
 				for entry in entries {
 				//println!( "{:#?}", entry );
 				let path = entry.as_path();
@@ -800,99 +823,3 @@ mod tests {
     }
 
 }
-
-/*
-fn listFilament( inventory:&FilamentLibrary ) {
-	println!( "Listing Filament" );
-	println!( "Inventory has {} items.", inventory.all_filament.len() );
-	
-	
-	for (pos, item ) in inventory.all_filament.iter().enumerate() {
-        println!("[{}]: {} - {} - {}", pos, item.name, item.filament_type, item.color );
-    }
-}
-*/
-
-/*
-fn addFilamentToCollection( inventory:&mut FilamentLibrary ){
-	println!("Let's add some filament.");
-	println!( "You have {} items in your current inventory.", inventory.all_filament.len() );
-	println!("What will this filament be called?");
-	
-	let mut filamentName = String::new();
-	stdin().read_line(&mut filamentName);
-	println!("You entered: {}", filamentName);
-
-	let mut filamentMaterial = String::new();
-	println!("What material is this filament?");
-	stdin().read_line(&mut filamentMaterial);
-	println!("You entered: {}", filamentMaterial);
-	
-	let mut filament_color = String::new();
-	println!("What color is this filament?");
-	stdin().read_line(&mut filament_color);
-	println!("You entered: {}", filament_color);
-	
-	let mut spool_count_string = String::new();
-	
-	println!("How many spools would you like to ad?");
-	stdin().read_line(&mut spool_count_string);
-	println!("You entered: {}", spool_count_string);
-	
-	 match spool_count_string.trim() .parse::<i32>(){
-        Ok(spool_count) => println!("User number is: {}", spool_count),
-        Err(_) => println!("Something is not wrong. Maybe you did not enter a valid integer.")
-	 }
-	
-	//let mut spool_count spool_count_string.parse::().unwrap();
-	
-	let new_filament = Filament {
-		name: String::from(filamentName.trim()),
-		filament_type: String::from(filamentName.trim()),
-		color: String::from(filament_color.trim()),
-		//spool_count: spool_count,
-	};
-	
-	//filaventory.push(new_filament);
-	inventory.all_filament.push(new_filament);
-	println!( "You NOW have {} items in your current inventory.", inventory.all_filament.len() );
-}
-*/
-/*
-fn maybeRemoveFilament( inventory:&mut FilamentLibrary ){
-	
-}
-
-fn removeFilamentFromCollection( inventory:&mut FilamentLibrary ){
-	let _removed_filament = inventory;
-	//inventory.remove(index_pos);
-	//println!( "Removed {}", removed_filament.name ); 
-}
-*/
-/*
-fn removeSpoolFromFilamentCollection( ){
-	
-}
-
-fn addSpoolFromFilamentCollection( ){
-	
-}
-*/
-
-/*
-struct Filament {
-	name: String;
-	
-}
-*/
-
-/*
-fn removeFilament( inventory ){
-	println!("Starting Remove Filament");
-}
-
-fn addFilament( inventory ){
-	println!("Starting Add Filament");
-	
-}
-*/
