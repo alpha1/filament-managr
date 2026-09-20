@@ -97,17 +97,17 @@ struct Spool {
 	material: String,
 	color_name: String,
 	hex: Option<HexColor>,
-	weight: i16,
+	weight: u16,
 	price:Option<f32>,	//spool_count: i8,
 }
 
 impl Spool {
-	fn new( material: String, color_name: String, hex_coolor:String, price:f32) -> Self {
+	fn new( material: String, color_name: String, hex_color:String, weight:u16, price:f32) -> Self {
 		Self {
 			material:material,
 			color_name:color_name,
 			hex:None,
-			weight: 1000,
+			weight: weight,
 			price:Some(price),
 		}
 	}
@@ -382,11 +382,20 @@ impl FilamentLibrary {
 		}
 		println!("Made it to here");
 		
-		self.add_filament(filament_name.clone(), filament_manufacturer.clone(),filament_material.clone());
-		println!( "You NOW have {} items in your current inventory.", self.all_filament.len() );
+		let new_filament = self.add_filament(filament_name.clone(), filament_manufacturer.clone(),filament_material.clone());
+		println!( "You now have {} filaments in your current library.", self.all_filament.len() );
+		match(new_filament){
+			Ok(filament) => {
+				self.maybe_add_spool( filament, filament_material.clone() );
+			},
+			Err(..) => todo!(),
+			
+		}
+		
+
 	}
 
-	fn add_filament( &mut self, filament_name:String, filament_manufacturer:String, filament_material:String  ){
+	fn add_filament( &mut self, filament_name:String, filament_manufacturer:String, filament_material:String  ) -> Result<Filament,bool>{
 		println!("Adding Filament to Inventory");
 
 		if in_filament_materials(filament_material.clone() ){
@@ -405,31 +414,112 @@ impl FilamentLibrary {
 				//spool_count: spool_count,
 			};
 			*/
-			self.all_filament.push(new_filament);
+			self.all_filament.push(new_filament.clone() );
+			return Ok(new_filament);
+		} else {
+			return Err(false);
 		}
 		//self.autosave_filament_library_json();
 	}
 
-	fn maybe_add_spool( &self, filament_material:String ){
-		let mut filament_name = String::new();
-		let mut filament_name_loop_completed = false;
-		while !filament_name_loop_completed {
-			println!("What will this filament be called?");
-			match stdin().read_line(&mut filament_name) {
+	fn maybe_add_spool( &self, filament:Filament, filament_material:String ){
+		let mut color_name = String::new();
+		let mut color_name_loop_completed = false;
+		while !color_name_loop_completed {
+			println!("What color is this spool?");
+			match stdin().read_line(&mut color_name) {
 				Ok(_n) => 
 					{
-						println!("You entered: {}", filament_name.trim());
-						filament_name_loop_completed = true;
+						println!("You entered: {}", color_name.trim());
+						color_name_loop_completed = true;
 					}
 				Err(error) => println!( "Invalid input. Error: {error}." )
 			}
-			
-			
 		}
+
+		let mut hex_color = String::new();
+		let mut hex_color_loop_completed = false;
+		while !hex_color_loop_completed {
+			println!("What 6 character bex color is this spool?");
+			match stdin().read_line(&mut hex_color) {
+				Ok(_n) => 
+					{
+						println!("You entered: {}", hex_color.trim());
+						hex_color_loop_completed = true;
+					}
+				Err(error) => println!( "Invalid input. Error: {error}." )
+			}
+		}
+
+		let mut spool_weight:u16 = 1000;
+		let mut spool_weight_input = String::new();
+		let mut spool_weight_loop_completed = false;
+		while !spool_weight_loop_completed {
+			println!("How much does this spool weight? Enter a number of grams or pick from the list below.");
+			list_common_spool_weights();
+			
+			stdin().read_line(&mut spool_weight_input).unwrap();
+
+			match spool_weight_input.trim().parse::<u16>() {
+				Ok(weight) => 
+					{
+						println!("You entered: {}", spool_weight_input.trim());
+						spool_weight = weight;
+						println!("{:#?}",spool_weight);
+						spool_weight_loop_completed = true;
+					}
+				Err(error) => println!( "Invalid input. Error: {error}." )
+			}
+		}
+
+		let mut spool_price:f32 = 0.00;
+		let mut spool_price_input = String::new();
+		let mut spool_price_loop_completed = false;
+		while !spool_price_loop_completed {
+			println!("How much did this spool cost?");
+
+			stdin().read_line(&mut spool_price_input).unwrap();
+
+			match spool_price_input.trim().parse::<f32>(){
+				Ok(price) => 
+					{
+						println!("You entered: {}", price);
+						spool_price = price;
+						println!("{:#?}",spool_price);
+						spool_price_loop_completed = true;
+					}
+				Err(error) => println!( "Invalid input. Error: {error}." )
+			}
+		}
+
+		self.add_spool( filament,filament_material, color_name, hex_color, spool_weight, spool_price);
 	}
 
-	fn add_spool( &self ){
+	fn add_spool( &self, filament:Filament,filament_material:String, color_name:String,hex_color:String,spool_weight:u16,spool_price:f32 ){
+		println!("Adding Spool to Inventory");
 
+		if in_filament_materials(filament_material.clone() ){
+			if in_spool_weights(spool_weight.clone() ){
+
+			let mut new_spool = Spool::new( 
+				String::from(filament_material.trim()),
+				String::from(color_name.trim()),
+				String::from(hex_color.trim()),
+				spool_weight,
+				spool_price,
+			);
+			/*
+			let new_filament = Filament::new{
+				name: String::from(filament_name.trim()),
+				manufacturer: filament_menufacturer.trim().to_string(),
+				material: String::from(filament_material.trim()),
+				//color: String::from(filament_color.trim()),
+				//spool_count: spool_count,
+			};
+			*/
+			}
+			//self.all_filament.push(new_filament);
+		}
 	}
 
 	fn is_filament_allowed( &self ){
@@ -695,6 +785,26 @@ fn list_filament_manufacturers( ) {
 	
 	for (pos,filement_manufacturer) in filement_manufacturers.iter().enumerate() {
 		println!( "[{pos}]: {}", filement_manufacturer );
+	}	
+}
+
+fn get_common_spool_weights() -> [u16; 6] {
+	[1000,500,250,50,3000,5000]
+}
+
+//TODO
+fn in_spool_weights( weight:u16)  -> bool {
+	println!("{weight}");
+	let common_weights = get_common_spool_weights();
+	common_weights.iter().any(|&i| i== weight)
+}
+
+fn list_common_spool_weights( ) {
+	println!("Listing Common Spool Weights");
+	let common_weights = get_common_spool_weights();
+	
+	for (pos,weight) in common_weights.iter().enumerate() {
+		println!( "[{pos}]: {}", weight );
 	}	
 }
 
