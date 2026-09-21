@@ -75,6 +75,10 @@ impl Filament {
 			hidden: None,
 		}
 	}
+
+	fn add_spool( &mut self, spool:Spool ){
+			self.spools.push( spool );
+	}
 }
 /*
 impl Default for Filament {
@@ -214,6 +218,7 @@ impl FilamentLibrary {
 				let mut filament_library_json:String = serde_json::to_string( &self ).expect("CONVERT TO JSON FAILED");
 				
 				writeln!(&mut file,"{}", filament_library_json ).expect("JSON WRITE FAILED");
+				println!("Saved in {}", sourcefile_full_path.clone().display() );
 			},
 			Err(error) => {
 				println!("Crap!");
@@ -255,15 +260,6 @@ impl FilamentLibrary {
 	}
 
 	fn import_test_filaments( &mut self ){
-		/*
-		self.add_filament( "Overture PLA Pro".to_string(), "Overture".to_string(), "PLA".to_string(), "Black".to_string() );
-		self.add_filament(  "Overture PLA Pro".to_string(),"Overture".to_string(), "PLA".to_string(), "Blue".to_string() );
-		self.add_filament( "Pokymaker PLA-HT".to_string(),"Polymaker".to_string(), "PLA-HT".to_string(), "Blue".to_string() );
-		self.add_filament(  "Pokymaker PLA-HT".to_string(), "Polymaker".to_string(),"PLA-HT".to_string(), "Red".to_string() );
-		self.add_filament(  "Pokymaker PLA-HT".to_string(), 
-		"Polymaker".to_string(),"PLA-HT".to_string(), "Green".to_string() );
-		*/
-
 		self.add_filament( "Overture PLA Pro".to_string(), "Overture".to_string(), "PLA".to_string() );
 		self.add_filament(  "Overture PLA Pro".to_string(),"Overture".to_string(), "PLA".to_string() );
 		self.add_filament( "Pokymaker PLA-HT".to_string(),"Polymaker".to_string(), "PLA-HT".to_string() );
@@ -380,18 +376,35 @@ impl FilamentLibrary {
 			println!("Material is: {filament_material}");
 		
 		}
-		println!("Made it to here");
 		
-		let new_filament = self.add_filament(filament_name.clone(), filament_manufacturer.clone(),filament_material.clone());
-		println!( "You now have {} filaments in your current library.", self.all_filament.len() );
+		let mut new_spool = self.maybe_make_spool( filament_material.clone() );
+
+		let mut new_filament = self.add_filament(filament_name.clone(), filament_manufacturer.clone(),filament_material.clone() );
+
 		match(new_filament){
-			Ok(filament) => {
-				self.maybe_add_spool( filament, filament_material.clone() );
+			Ok(mut filament) => {
+				match(new_spool){
+					Ok( spool ) => {
+							filament.add_spool( spool.clone() );
+					},
+					Err(..) => {
+						println!("Adding new spool failed");
+						todo!()	
+					}
+				}
+				self.all_filament.push( filament.clone() );
+				println!( "You now have {} filaments in your current library.", self.all_filament.len() );
 			},
-			Err(..) => todo!(),
-			
+			Err(..) =>{
+				println!("Adding new filament failed");
+				todo!()	
+			}	
 		}
-		
+	}
+
+	fn select_and_add_spool(&self ){
+		println!("Select the number of the filament to modify.");
+		self.list_inventory();
 
 	}
 
@@ -414,7 +427,6 @@ impl FilamentLibrary {
 				//spool_count: spool_count,
 			};
 			*/
-			self.all_filament.push(new_filament.clone() );
 			return Ok(new_filament);
 		} else {
 			return Err(false);
@@ -422,7 +434,7 @@ impl FilamentLibrary {
 		//self.autosave_filament_library_json();
 	}
 
-	fn maybe_add_spool( &self, filament:Filament, filament_material:String ){
+	fn maybe_make_spool( &self, filament_material:String ) -> Result<Spool,bool>{
 		let mut color_name = String::new();
 		let mut color_name_loop_completed = false;
 		while !color_name_loop_completed {
@@ -454,22 +466,38 @@ impl FilamentLibrary {
 		let mut spool_weight:u16 = 1000;
 		let mut spool_weight_input = String::new();
 		let mut spool_weight_loop_completed = false;
+		let common_spool_weights = get_common_spool_weights();
 		while !spool_weight_loop_completed {
 			println!("How much does this spool weight? Enter a number of grams or pick from the list below.");
 			list_common_spool_weights();
 			
 			stdin().read_line(&mut spool_weight_input).unwrap();
 
-			match spool_weight_input.trim().parse::<u16>() {
-				Ok(weight) => 
-					{
-						println!("You entered: {}", spool_weight_input.trim());
-						spool_weight = weight;
-						println!("{:#?}",spool_weight);
-						spool_weight_loop_completed = true;
+			match spool_weight_input.trim().parse::<u32>(){
+			//Ok(index_pos) => self.removeFilament( &self, &index_pos),
+				Ok(index_pos) => {
+					//if( in_spool_weights( )
+					if let Some( weight_value) = common_spool_weights.get(index_pos as usize){
+					spool_weight_loop_completed = true;
 					}
-				Err(error) => println!( "Invalid input. Error: {error}." )
+				}
+				,
+				Err(_) => {
+					match spool_weight_input.trim().parse::<u16>() {
+						Ok(weight) => 
+							{
+								println!("You entered: {} grams.", weight);
+								spool_weight = weight;
+								println!("{:#?}",spool_weight);
+								spool_weight_loop_completed = true;
+							}
+						Err(error) => println!( "Invalid input. Integer expected. Please select from the list or enter a value in grams. Error: {error}." )
+					}
+				}
 			}
+
+
+		
 		}
 
 		let mut spool_price:f32 = 0.00;
@@ -492,16 +520,17 @@ impl FilamentLibrary {
 			}
 		}
 
-		self.add_spool( filament,filament_material, color_name, hex_color, spool_weight, spool_price);
+		return self.add_spool( filament_material, color_name, hex_color, spool_weight, spool_price);
 	}
 
-	fn add_spool( &self, filament:Filament,filament_material:String, color_name:String,hex_color:String,spool_weight:u16,spool_price:f32 ){
+	fn add_spool( &self,filament_material:String, color_name:String,hex_color:String,spool_weight:u16,spool_price:f32 ) -> Result<Spool,bool>{
 		println!("Adding Spool to Inventory");
 
 		if in_filament_materials(filament_material.clone() ){
+			println!("Spool Weight Value: {}", spool_weight);
 			if in_spool_weights(spool_weight.clone() ){
 
-			let mut new_spool = Spool::new( 
+			let mut new_spool: Spool = Spool::new( 
 				String::from(filament_material.trim()),
 				String::from(color_name.trim()),
 				String::from(hex_color.trim()),
@@ -517,8 +546,15 @@ impl FilamentLibrary {
 				//spool_count: spool_count,
 			};
 			*/
+			
+			return Ok(new_spool);
+			} else {
+				println!("Spool weight issue");
+				return Err(false);
 			}
-			//self.all_filament.push(new_filament);
+		} else {
+			println!("Filament material not in list");
+			return Err(false);
 		}
 	}
 
@@ -636,7 +672,7 @@ fn library_picker() -> FilamentLibrary {
 							match library_selection_input.trim().parse::<usize>(){
 								Ok( index ) =>{
 									if let Some((key, value)) = files.get_index(index) {
-										println!("Item at index x{}x: y{}y => z{:#?}z", index, key, value);
+										println!("Item at index {}: {} => {:#?}", index, key, value);
 
 										let file = File::open(value.as_path() );
 				
@@ -697,6 +733,7 @@ fn library_menu( mut inventory: FilamentLibrary){
 	commands.insert("1", "List inventory");
 	commands.insert("2", "Add filament to inventory");
 	commands.insert("3", "Delete filament to inventory");
+	commands.insert("4", "Add Spool to filament");
 	commands.insert("9", "List filament materials");
 	commands.insert("t", "Test filament material names");
 	commands.insert("e", "Export filament inventory to CSV");
@@ -726,8 +763,9 @@ fn library_menu( mut inventory: FilamentLibrary){
 					"2" => inventory.maybe_add_filament(),
 					//"3" => maybeRemoveFilament( &mut inventory ),
 					"3" => inventory.maybe_remove_filament(),
+					"4" => inventory.select_and_add_spool(),
 					"9" => list_filament_types( ), 
-					"0" => {
+					"q" => {
 						println!("Goodbye");
 						process::exit(0);
 					}
@@ -752,7 +790,6 @@ fn get_filament_materials() -> [&'static str; 11] {
 }
 
 fn in_filament_materials( filament_material:String)  -> bool {
-	println!("{filament_material}");
 	let filament_materials = get_filament_materials();
 	filament_materials.iter().any(|&i| i== filament_material)
 }
