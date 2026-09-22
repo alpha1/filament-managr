@@ -21,9 +21,10 @@ use std::{
 	collections::BTreeMap,
 	collections::HashMap,
 	path::Path,
+	iter::empty,
 };//use serde_ };
 use app_data::AppData;
-use hex_color::HexColor;
+use hex_color::{Display, HexColor};
 use uuid::Uuid;
 use indexmap::{IndexMap, IndexSet};
 //use std::ops::Index;
@@ -270,8 +271,21 @@ impl FilamentLibrary {
 	
 	fn list_inventory( &self ){
 		println!( "Listing filaments in {}", self.library_name);
-		for (pos, item ) in self.all_filament.iter().enumerate() {
-			println!("[{}]: {} - {} - {}", pos, item.name, item.manufacturer, item.material);
+		for (pos, filament ) in self.all_filament.iter().enumerate() {
+			println!("[{}]: {} - {} - {}", pos, filament.name, filament.manufacturer, filament.material);
+		}
+	}
+
+	fn list_inventory_with_spool ( &self ){
+		println!( "Listing filaments in {}", self.library_name);
+		for (pos, filament ) in self.all_filament.iter().enumerate() {
+			if((!filament.spools.is_empty())){
+				for (spool) in filament.spools.iter() {
+					println!("[{}]: {} - {} - {}: {} {}", pos, filament.name, filament.manufacturer, filament.material, spool.color_name,spool.weight );
+				}
+			} else {
+				println!("[{}]: {} - {} - {}: No Spools", pos, filament.name, filament.manufacturer, filament.material);
+			}
 		}
 	}
 
@@ -758,7 +772,7 @@ fn library_menu( mut inventory: FilamentLibrary){
 				*/
 				match input.as_str().trim() {
 					//"1" => listFilament( &inventory ),
-					"1" => inventory.list_inventory(),
+					"1" => inventory.list_inventory_with_spool(),
 					//"2" => addFilamentToCollection( &mut inventory ),
 					"2" => inventory.maybe_add_filament(),
 					//"3" => maybeRemoveFilament( &mut inventory ),
